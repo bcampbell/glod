@@ -12,6 +12,7 @@ import (
 	"path"
 	"path/filepath"
 	"regexp"
+	"strings"
 )
 
 // TODO: kill this. use site vars instead
@@ -23,14 +24,24 @@ var conf struct {
 	TemplateDir string
 }
 
+// helper fn for papering over some of the icky casting
+func getStr(dict map[string]interface{}, key string) string {
+	if val, ok := dict[key]; ok {
+		if s, ok := val.(string); ok {
+			return s
+		}
+	}
+	return ""
+}
+
 // Page variables:
 //
 // set in front matter:
-//   title
+//   title	  - title of page. If not set, derived from slug.
 //   date
 //   template - name of template to use to render this page (default: "default.html")
 //
-// generated:
+// generated (ie treat as read-only)
 //   path     - eg "posts/april"
 //   slug     - eg "everything-is-a-bit-shit"
 //   url      - eg "/posts/april/everything-is-a-bit-shit"
@@ -247,6 +258,12 @@ func readPage(filename string) (Page, error) {
 	}
 	page["url"] = u
 
+	title := getStr(page, "title")
+	if title == "" {
+		// derive title from slug
+		page["title"] = strings.Title(strings.Replace(slug, "-", " ", -1))
+	}
+
 	return page, nil
 }
 
@@ -307,10 +324,8 @@ func renderPageContent(page Page, site Site) error {
 func renderPage(page Page, site Site, tmpls *template.Template) error {
 	//	fmt.Println(t.DefinedTemplates())
 
-	var tmplName string
-	var ok bool
-	tmplName, ok = page["template"].(string)
-	if !ok || tmplName == "" {
+	tmplName := getStr(page, "template")
+	if tmplName == "" {
 		tmplName = "default.html"
 	}
 
@@ -320,10 +335,8 @@ func renderPage(page Page, site Site, tmpls *template.Template) error {
 	}
 
 	// work out output filename
-	relPath := page["path"].(string)
-
-	file := page["slug"].(string) + ".html"
-
+	relPath := getStr(page, "path")
+	file := getStr(page, "slug") + ".html"
 	outFilename := filepath.Join(conf.OutDir, relPath, file)
 
 	err := os.MkdirAll(filepath.Join(conf.OutDir, relPath), 0777)
