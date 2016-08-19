@@ -3,3 +3,5 @@ allow static files in content dir (eg images)
 sort content (by date at least)
 ignore non-html files in templates (eg README, .swp ... )
 allow .markdown as well as .md
+report multiple errors before bailing out
+add date formatting func for use in templates
