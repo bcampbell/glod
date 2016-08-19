@@ -8,6 +8,7 @@ import (
 	"html/template"
 	"io/ioutil"
 	"os"
+	"path"
 	"path/filepath"
 	"regexp"
 	"strings"
@@ -21,7 +22,27 @@ var conf struct {
 	TemplateDir string
 }
 
+// Page variables:
+//
+// set in front matter:
+//   title
+//   date
+//
+// generated:
+//   path     - eg "posts/april"
+//   slug     - eg "everything-is-a-bit-shit"
+//   url      - eg "/posts/april/everything-is-a-bit-shit"
+//   content  - holds the rendered content for page
+//
 type Page map[string]interface{}
+
+// Site variables:
+//
+//   title    (eg "Fancy Site")
+//   baseurl  (eg "http://fancysite.example.com/") TODO
+//   publishdir  (default: "www") TODO
+//   uglyurls  (default: false) TODO
+
 type Site map[string]interface{}
 
 func Split(s string, d string) []string {
@@ -39,28 +60,39 @@ func main() {
 	conf.ContentDir = filepath.Join(conf.SrcDir, "content")
 	conf.SkelDir = filepath.Join(conf.SrcDir, "skel")
 	conf.TemplateDir = filepath.Join(conf.SrcDir, "templates")
-	err := gen()
+	site, err := gen()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "ERR: %s\n", err)
 	}
+
+	err = runSite(site)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "ERR: %s\n", err)
+	}
+
 }
 
-func gen() error {
+func gen() (Site, error) {
+
+	site, err := loadSiteConfig(conf.SrcDir)
+	if err != nil {
+		return nil, err
+	}
 
 	// set up the output dir
-	err := CopyDir(conf.SkelDir, conf.OutDir)
+	err = CopyDir(conf.SkelDir, conf.OutDir)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	tmpls, err := loadTemplates(conf.TemplateDir)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	pages, err := readPages()
+	pages, err := readContent()
 	if err != nil {
-		return err
+		return nil, err
 	}
 	/*
 		for _, tmpl := range t.Templates() {
@@ -68,14 +100,13 @@ func gen() error {
 		}
 	*/
 
-	// TODO: support a site config file
-	site := Site{"Pages": pages}
+	site["Pages"] = pages
 
 	// prep the pages for rendering
 	for _, page := range pages {
 		err := cookPage(page, site)
 		if err != nil {
-			return err
+			return nil, err
 		}
 	}
 
@@ -83,7 +114,7 @@ func gen() error {
 	for _, page := range pages {
 		err := renderPageContent(page, site)
 		if err != nil {
-			return err
+			return nil, err
 		}
 	}
 
@@ -92,51 +123,10 @@ func gen() error {
 
 		err := renderPage(page, site, tmpls)
 		if err != nil {
-			return err
+			return nil, err
 		}
 	}
-	return nil
-}
-
-func renderPage(page Page, site Site, tmpls *template.Template) error {
-	//	fmt.Println(t.DefinedTemplates())
-
-	// TODO: allow per-page templates
-	tmplName := "default.html"
-	def := tmpls.Lookup(tmplName)
-	if def == nil {
-		return fmt.Errorf("ERR: missing template '%s'", tmplName)
-	}
-
-	// work out output filename
-	relPath := page["path"].(string)
-	file := page["slug"].(string) + ".html"
-
-	outFilename := filepath.Join(conf.OutDir, relPath, file)
-
-	err := os.MkdirAll(filepath.Join(conf.OutDir, relPath), 0777)
-	if err != nil {
-		return err
-	}
-	outFile, err := os.Create(outFilename)
-	if err != nil {
-		return err
-	}
-	defer outFile.Close()
-
-	fmt.Printf("----- %s -----\n", page["_srcfile"])
-	var data = struct {
-		Site Site
-		Page Page
-	}{
-		site,
-		page,
-	}
-	err = def.Execute(outFile, data)
-	if err != nil {
-		return err
-	}
-	return nil
+	return site, err
 }
 
 func loadTemplates(srcDir string) (*template.Template, error) {
@@ -195,7 +185,7 @@ func readPage(filename string) (Page, error) {
 //	rendered := blackfriday.MarkdownCommon(content)
 //	page["content"] = template.HTML(rendered)
 
-func readPages() ([]Page, error) {
+func readContent() ([]Page, error) {
 	pages := []Page{}
 
 	err := filepath.Walk(conf.ContentDir, func(path string, info os.FileInfo, err error) error {
@@ -224,6 +214,15 @@ func readPages() ([]Page, error) {
 	return pages, nil
 }
 
+func stripExt(path string) string {
+	for i := len(path) - 1; i >= 0 && !os.IsPathSeparator(path[i]); i-- {
+		if path[i] == '.' {
+			return path[:i]
+		}
+	}
+	return path
+}
+
 func cookPage(page Page, site Site) error {
 	filename := page["_srcfile"].(string)
 
@@ -232,13 +231,17 @@ func cookPage(page Page, site Site) error {
 		return err
 	}
 
-	page["path"] = filepath.Dir(relPath)
-	page["slug"] = filepath.Base(relPath)
+	relDir := filepath.Dir(relPath)
+	page["path"] = relDir
 
-	page["url"] = relPath
+	slug := stripExt(filepath.Base(relPath))
+	page["slug"] = slug
+
+	page["url"] = path.Join("/", relDir, slug) + ".html"
 	return nil
 }
 
+// set the "content" field on a page
 func renderPageContent(page Page, site Site) error {
 
 	rawContent := page["_rawcontent"].([]byte)
@@ -247,8 +250,7 @@ func renderPageContent(page Page, site Site) error {
 		rendered := blackfriday.MarkdownCommon(rawContent)
 		page["content"] = template.HTML(rendered)
 	} else if ext == ".html" {
-		// TODO: treat as template!
-		tmpl := template.New("_foo").Funcs(helperFuncs)
+		tmpl := template.New("").Funcs(helperFuncs)
 		_, err := tmpl.Parse(string(rawContent))
 		if err != nil {
 			return err
@@ -272,4 +274,62 @@ func renderPageContent(page Page, site Site) error {
 		page["content"] = string(rawContent)
 	}
 	return nil
+}
+
+// render the whole page
+func renderPage(page Page, site Site, tmpls *template.Template) error {
+	//	fmt.Println(t.DefinedTemplates())
+
+	var tmplName string
+	var ok bool
+	if tmplName, ok = page["template"].(string); !ok {
+		tmplName = "default.html"
+	}
+
+	def := tmpls.Lookup(tmplName)
+	if def == nil {
+		return fmt.Errorf("missing template '%s'", tmplName)
+	}
+
+	// work out output filename
+	relPath := page["path"].(string)
+	file := page["slug"].(string) + ".html"
+
+	outFilename := filepath.Join(conf.OutDir, relPath, file)
+
+	err := os.MkdirAll(filepath.Join(conf.OutDir, relPath), 0777)
+	if err != nil {
+		return err
+	}
+	outFile, err := os.Create(outFilename)
+	if err != nil {
+		return err
+	}
+	defer outFile.Close()
+
+	fmt.Printf("----- %s -----\n", page["_srcfile"])
+	var data = struct {
+		Site Site
+		Page Page
+	}{
+		site,
+		page,
+	}
+	err = def.Execute(outFile, data)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func loadSiteConfig(siteDir string) (Site, error) {
+
+	fileName := filepath.Join(siteDir, "config.toml")
+	site := Site{}
+	_, err := toml.DecodeFile(fileName, &site)
+	if err != nil {
+		return nil, err
+	}
+
+	return site, err
 }
