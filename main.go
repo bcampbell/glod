@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"flag"
 	"fmt"
 	"github.com/BurntSushi/toml"
 	"github.com/russross/blackfriday"
@@ -11,9 +12,9 @@ import (
 	"path"
 	"path/filepath"
 	"regexp"
-	"strings"
 )
 
+// TODO: kill this. use site vars instead
 var conf struct {
 	SrcDir      string
 	OutDir      string
@@ -27,6 +28,7 @@ var conf struct {
 // set in front matter:
 //   title
 //   date
+//   template - name of template to use to render this page (default: "default.html")
 //
 // generated:
 //   path     - eg "posts/april"
@@ -45,40 +47,53 @@ type Page map[string]interface{}
 
 type Site map[string]interface{}
 
-func Split(s string, d string) []string {
-	arr := strings.Split(s, d)
-	return arr
-}
-
-var helperFuncs = template.FuncMap{
-	"Split": Split,
-}
-
 func main() {
-	conf.SrcDir = "example"
-	conf.OutDir = "example/www"
+	flag.Usage = func() {
+
+		fmt.Fprintf(os.Stderr, "Usage:\n")
+		fmt.Fprintf(os.Stderr, "%s [OPTIONS] [SITEDIR]\n", os.Args[0])
+		fmt.Fprintf(os.Stderr, "Generate a static website from templates.\n")
+		flag.PrintDefaults()
+	}
+
+	var serverFlag bool
+	flag.BoolVar(&serverFlag, "server", false, "run webserver after generating site")
+	flag.Parse()
+
+	siteDir := "."
+	if flag.NArg() > 0 {
+		siteDir = flag.Arg(0)
+	}
+
+	site, err := gen(siteDir)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "ERR: %s\n", err)
+	}
+
+	if serverFlag {
+		err = serveSite(site)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "ERR: %s\n", err)
+		}
+	}
+}
+
+// The main driver function for generating a site
+func gen(siteDir string) (Site, error) {
+
+	conf.SrcDir = siteDir
+	conf.OutDir = filepath.Join(conf.SrcDir, "www")
 	conf.ContentDir = filepath.Join(conf.SrcDir, "content")
 	conf.SkelDir = filepath.Join(conf.SrcDir, "skel")
 	conf.TemplateDir = filepath.Join(conf.SrcDir, "templates")
-	site, err := gen()
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "ERR: %s\n", err)
-	}
 
-	err = runSite(site)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "ERR: %s\n", err)
-	}
-
-}
-
-func gen() (Site, error) {
-
+	//
 	site, err := loadSiteConfig(conf.SrcDir)
 	if err != nil {
 		return nil, err
 	}
 
+	// TODO: skel dir should be optional
 	// set up the output dir
 	err = CopyDir(conf.SkelDir, conf.OutDir)
 	if err != nil {
@@ -129,6 +144,7 @@ func gen() (Site, error) {
 	return site, err
 }
 
+// load and parse all the templates in the templates dir
 func loadTemplates(srcDir string) (*template.Template, error) {
 
 	found := []string{}
@@ -150,41 +166,8 @@ func loadTemplates(srcDir string) (*template.Template, error) {
 	return template.New("").Funcs(helperFuncs).ParseFiles(found...)
 }
 
-var tomlFrontMatterPat = regexp.MustCompile(`(?ms)\A[+]{3}\s*$\s*(.*?)^[+]{3}\s*$\s*(.*)\z`)
-
-func readPage(filename string) (Page, error) {
-
-	raw, err := ioutil.ReadFile(filename)
-	if err != nil {
-		return nil, err
-	}
-
-	m := tomlFrontMatterPat.FindSubmatch(raw)
-
-	//	var in struct{ Title, Date string }
-	page := Page{}
-	content := []byte{}
-	if m == nil {
-		content = raw
-	} else {
-		_, err = toml.Decode(string(m[1]), &page)
-		if err != nil {
-			return nil, err
-		}
-		content = m[2]
-	}
-
-	// stash content for later rendering
-	page["_rawcontent"] = content
-	page["_srcfile"] = filename
-
-	return page, nil
-}
-
-// render it
-//	rendered := blackfriday.MarkdownCommon(content)
-//	page["content"] = template.HTML(rendered)
-
+// load in all the pages
+// TODO: support having static files in here too
 func readContent() ([]Page, error) {
 	pages := []Page{}
 
@@ -214,6 +197,59 @@ func readContent() ([]Page, error) {
 	return pages, nil
 }
 
+var tomlFrontMatterPat = regexp.MustCompile(`(?ms)\A[+]{3}\s*$\s*(.*?)^[+]{3}\s*$\s*(.*)\z`)
+
+// read a page from the content dir, parsing the front matter and stashing the raw content
+// for later rendering
+func readPage(filename string) (Page, error) {
+
+	raw, err := ioutil.ReadFile(filename)
+	if err != nil {
+		return nil, err
+	}
+
+	m := tomlFrontMatterPat.FindSubmatch(raw)
+
+	//	var in struct{ Title, Date string }
+	page := Page{}
+	content := []byte{}
+	if m == nil {
+		content = raw
+	} else {
+		_, err = toml.Decode(string(m[1]), &page)
+		if err != nil {
+			return nil, err
+		}
+		content = m[2]
+	}
+
+	// stash content for later rendering
+	page["_rawcontent"] = content
+	page["_srcfile"] = filename
+
+	// add various computed variables
+	relPath, err := filepath.Rel(conf.ContentDir, filename)
+	if err != nil {
+		return nil, err
+	}
+
+	relDir := filepath.Dir(relPath)
+	page["path"] = relDir
+
+	slug := stripExt(filepath.Base(relPath))
+	page["slug"] = slug
+
+	var u string
+	if slug == "index" {
+		u = path.Join("/", relDir, "/")
+	} else {
+		u = path.Join("/", relDir, slug)
+	}
+	page["url"] = u
+
+	return page, nil
+}
+
 func stripExt(path string) string {
 	for i := len(path) - 1; i >= 0 && !os.IsPathSeparator(path[i]); i-- {
 		if path[i] == '.' {
@@ -223,30 +259,21 @@ func stripExt(path string) string {
 	return path
 }
 
+// add various computed variables to a page
 func cookPage(page Page, site Site) error {
-	filename := page["_srcfile"].(string)
+	//filename := page["_srcfile"].(string)
 
-	relPath, err := filepath.Rel(conf.ContentDir, filename)
-	if err != nil {
-		return err
-	}
-
-	relDir := filepath.Dir(relPath)
-	page["path"] = relDir
-
-	slug := stripExt(filepath.Base(relPath))
-	page["slug"] = slug
-
-	page["url"] = path.Join("/", relDir, slug) + ".html"
 	return nil
 }
 
-// set the "content" field on a page
+// render the raw content stashed in a page and store it in the "content" field
 func renderPageContent(page Page, site Site) error {
 
 	rawContent := page["_rawcontent"].([]byte)
 	ext := filepath.Ext(page["_srcfile"].(string))
 	if ext == ".md" {
+		// TODO: would be nice to pass markdown through a template here... text/template maybe?
+		// or maybe pass it through, then use html/template on the result?
 		rendered := blackfriday.MarkdownCommon(rawContent)
 		page["content"] = template.HTML(rendered)
 	} else if ext == ".html" {
@@ -282,7 +309,8 @@ func renderPage(page Page, site Site, tmpls *template.Template) error {
 
 	var tmplName string
 	var ok bool
-	if tmplName, ok = page["template"].(string); !ok {
+	tmplName, ok = page["template"].(string)
+	if !ok || tmplName == "" {
 		tmplName = "default.html"
 	}
 
@@ -293,6 +321,7 @@ func renderPage(page Page, site Site, tmpls *template.Template) error {
 
 	// work out output filename
 	relPath := page["path"].(string)
+
 	file := page["slug"].(string) + ".html"
 
 	outFilename := filepath.Join(conf.OutDir, relPath, file)
@@ -307,7 +336,6 @@ func renderPage(page Page, site Site, tmpls *template.Template) error {
 	}
 	defer outFile.Close()
 
-	fmt.Printf("----- %s -----\n", page["_srcfile"])
 	var data = struct {
 		Site Site
 		Page Page
@@ -319,6 +347,7 @@ func renderPage(page Page, site Site, tmpls *template.Template) error {
 	if err != nil {
 		return err
 	}
+	fmt.Fprintf(os.Stderr, "generated %s\n", outFilename)
 	return nil
 }
 

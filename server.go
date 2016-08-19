@@ -2,7 +2,7 @@ package main
 
 import (
 	"errors"
-	//	"fmt"
+	"fmt"
 	"net/http"
 	"os"
 	"path"
@@ -10,7 +10,8 @@ import (
 	"strings"
 )
 
-//
+// FancyDir is a http.Filesystem implementation which
+// also tries ".html" extensions if the requested file is not found
 type FancyDir string
 
 func (d FancyDir) Open(name string) (http.File, error) {
@@ -36,9 +37,10 @@ func (d FancyDir) Open(name string) (http.File, error) {
 	return nil, err
 }
 
-func runSite(site Site) error {
+func serveSite(site Site) error {
 
 	h := http.FileServer(FancyDir(conf.OutDir))
+	fmt.Fprintf(os.Stderr, "serving site on http://localhost:8080\n")
 	return http.ListenAndServe(":8080", h)
 
 }
