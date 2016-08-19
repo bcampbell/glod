@@ -171,9 +171,15 @@ func loadTemplates(srcDir string) (*template.Template, error) {
 		return nil
 	})
 	if err != nil {
+		if os.IsNotExist(err) {
+			return nil, fmt.Errorf("No templates - %s doesn't exist", srcDir)
+		}
 		return nil, err
 	}
 
+	if len(found) == 0 {
+		return nil, fmt.Errorf("No templates found in %s", srcDir)
+	}
 	return template.New("").Funcs(helperFuncs).ParseFiles(found...)
 }
 
