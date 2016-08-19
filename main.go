@@ -79,12 +79,14 @@ func main() {
 	site, err := gen(siteDir)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "ERR: %s\n", err)
+		os.Exit(1)
 	}
 
 	if serverFlag {
 		err = serveSite(site)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "ERR: %s\n", err)
+			os.Exit(1)
 		}
 	}
 }
@@ -126,7 +128,7 @@ func gen(siteDir string) (Site, error) {
 		}
 	*/
 
-	site["Pages"] = pages
+	site["pages"] = pages
 
 	// prep the pages for rendering
 	for _, page := range pages {
@@ -201,7 +203,7 @@ func readContent() ([]Page, error) {
 		case ".md", ".html":
 			page, err := readPage(path)
 			if err != nil {
-				return err
+				return fmt.Errorf("%s: %s", path, err)
 			}
 			pages = append(pages, page)
 		default:
@@ -337,7 +339,7 @@ func renderPage(page Page, site Site, tmpls *template.Template) error {
 
 	def := tmpls.Lookup(tmplName)
 	if def == nil {
-		return fmt.Errorf("missing template '%s'", tmplName)
+		return fmt.Errorf("%s: missing template '%s'", getStr(page, "_srcfile"), tmplName)
 	}
 
 	// work out output filename
@@ -347,11 +349,11 @@ func renderPage(page Page, site Site, tmpls *template.Template) error {
 
 	err := os.MkdirAll(filepath.Join(conf.OutDir, relPath), 0777)
 	if err != nil {
-		return err
+		return fmt.Errorf("%s: err", getStr(page, "_srcfile"))
 	}
 	outFile, err := os.Create(outFilename)
 	if err != nil {
-		return err
+		return fmt.Errorf("%s: err", getStr(page, "_srcfile"))
 	}
 	defer outFile.Close()
 
@@ -364,9 +366,9 @@ func renderPage(page Page, site Site, tmpls *template.Template) error {
 	}
 	err = def.Execute(outFile, data)
 	if err != nil {
-		return err
+		return fmt.Errorf("%s: err", getStr(page, "_srcfile"))
 	}
-	fmt.Fprintf(os.Stderr, "generated %s\n", outFilename)
+	//fmt.Fprintf(os.Stderr, "generated %s\n", outFilename)
 	return nil
 }
 
@@ -376,7 +378,7 @@ func loadSiteConfig(siteDir string) (Site, error) {
 	site := Site{}
 	_, err := toml.DecodeFile(fileName, &site)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("%s: %s", fileName, err)
 	}
 
 	return site, err

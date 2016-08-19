@@ -1,4 +1,5 @@
 skel dir should be optional
 allow static files in content dir (eg images)
 sort content (by date at least)
-
+ignore non-html files in templates (eg README, .swp ... )
+allow .markdown as well as .md
