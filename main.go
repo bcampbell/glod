@@ -169,6 +169,10 @@ func loadTemplates(srcDir string) (*template.Template, error) {
 		if info.IsDir() {
 			return nil
 		}
+		if ext := filepath.Ext(path); ext != ".html" {
+			// .html files only
+			return nil
+		}
 		found = append(found, path)
 		return nil
 	})
