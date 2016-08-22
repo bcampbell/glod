@@ -15,15 +15,6 @@ import (
 	"strings"
 )
 
-// TODO: kill this. use site vars instead
-var conf struct {
-	SrcDir      string
-	OutDir      string
-	ContentDir  string
-	SkelDir     string
-	TemplateDir string
-}
-
 // helper fn for papering over some of the icky casting
 func getStr(dict map[string]interface{}, key string) string {
 	if val, ok := dict[key]; ok {
@@ -83,7 +74,7 @@ func main() {
 	}
 
 	if serverFlag {
-		err = serveSite(site)
+		err = serveSite(getStr(site, "_outdir"))
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "ERR: %s\n", err)
 			os.Exit(1)
@@ -94,31 +85,25 @@ func main() {
 // The main driver function for generating a site
 func gen(siteDir string) (Site, error) {
 
-	conf.SrcDir = siteDir
-	conf.OutDir = filepath.Join(conf.SrcDir, "www")
-	conf.ContentDir = filepath.Join(conf.SrcDir, "content")
-	conf.SkelDir = filepath.Join(conf.SrcDir, "skel")
-	conf.TemplateDir = filepath.Join(conf.SrcDir, "templates")
-
 	//
-	site, err := loadSiteConfig(conf.SrcDir)
+	site, err := loadSiteConfig(siteDir)
 	if err != nil {
 		return nil, err
 	}
 
 	// TODO: skel dir should be optional
 	// set up the output dir
-	err = CopyDir(conf.SkelDir, conf.OutDir)
+	err = CopyDir(getStr(site, "_skeldir"), getStr(site, "_outdir"))
 	if err != nil {
 		return nil, err
 	}
 
-	tmpls, err := loadTemplates(conf.TemplateDir)
+	tmpls, err := loadTemplates(getStr(site, "_templatesdir"))
 	if err != nil {
 		return nil, err
 	}
 
-	pages, err := readContent()
+	pages, err := readContent(site)
 	if err != nil {
 		return nil, err
 	}
@@ -191,10 +176,10 @@ func loadTemplates(srcDir string) (*template.Template, error) {
 
 // load in all the pages
 // TODO: support having static files in here too
-func readContent() ([]Page, error) {
+func readContent(site Site) ([]Page, error) {
 	pages := []Page{}
 
-	err := filepath.Walk(conf.ContentDir, func(path string, info os.FileInfo, err error) error {
+	err := filepath.Walk(getStr(site, "_contentdir"), func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			return err
 		}
@@ -205,7 +190,7 @@ func readContent() ([]Page, error) {
 		ext := filepath.Ext(path)
 		switch ext {
 		case ".md", ".html":
-			page, err := readPage(path)
+			page, err := readPage(site, path)
 			if err != nil {
 				return fmt.Errorf("%s: %s", path, err)
 			}
@@ -223,8 +208,8 @@ func readContent() ([]Page, error) {
 var tomlFrontMatterPat = regexp.MustCompile(`(?ms)\A[+]{3}\s*$\s*(.*?)^[+]{3}\s*$\s*(.*)\z`)
 
 // read a page from the content dir, parsing the front matter and stashing the raw content
-// for later rendering
-func readPage(filename string) (Page, error) {
+// for later rendering (filename is absolute path, not content-relative)
+func readPage(site Site, filename string) (Page, error) {
 
 	raw, err := ioutil.ReadFile(filename)
 	if err != nil {
@@ -251,7 +236,7 @@ func readPage(filename string) (Page, error) {
 	page["_srcfile"] = filename
 
 	// add various computed variables
-	relPath, err := filepath.Rel(conf.ContentDir, filename)
+	relPath, err := filepath.Rel(getStr(site, "_contentdir"), filename)
 	if err != nil {
 		return nil, err
 	}
@@ -334,7 +319,7 @@ func renderPageContent(page Page, site Site) error {
 
 // render the whole page
 func renderPage(page Page, site Site, tmpls *template.Template) error {
-	//	fmt.Println(t.DefinedTemplates())
+	outDir := getStr(site, "_outdir")
 
 	tmplName := getStr(page, "template")
 	if tmplName == "" {
@@ -349,9 +334,9 @@ func renderPage(page Page, site Site, tmpls *template.Template) error {
 	// work out output filename
 	relPath := getStr(page, "path")
 	file := getStr(page, "slug") + ".html"
-	outFilename := filepath.Join(conf.OutDir, relPath, file)
+	outFilename := filepath.Join(outDir, relPath, file)
 
-	err := os.MkdirAll(filepath.Join(conf.OutDir, relPath), 0777)
+	err := os.MkdirAll(filepath.Join(outDir, relPath), 0777)
 	if err != nil {
 		return fmt.Errorf("%s: err", getStr(page, "_srcfile"))
 	}
@@ -384,6 +369,11 @@ func loadSiteConfig(siteDir string) (Site, error) {
 	if err != nil {
 		return nil, fmt.Errorf("%s: %s", fileName, err)
 	}
+
+	site["_outdir"] = filepath.Join(siteDir, "www")
+	site["_contentdir"] = filepath.Join(siteDir, "content")
+	site["_skeldir"] = filepath.Join(siteDir, "skel")
+	site["_templatesdir"] = filepath.Join(siteDir, "templates")
 
 	return site, err
 }

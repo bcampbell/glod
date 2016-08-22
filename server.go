@@ -37,9 +37,9 @@ func (d FancyDir) Open(name string) (http.File, error) {
 	return nil, err
 }
 
-func serveSite(site Site) error {
+func serveSite(outDir string) error {
 
-	h := http.FileServer(FancyDir(conf.OutDir))
+	h := http.FileServer(FancyDir(outDir))
 	fmt.Fprintf(os.Stderr, "serving site on http://localhost:8080\n")
 	return http.ListenAndServe(":8080", h)
 
