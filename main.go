@@ -74,6 +74,15 @@ func main() {
 	}
 
 	if serverFlag {
+		/*	for {
+				site, err := gen(siteDir)
+				err = waitForChanges(site)
+				if err != nil {
+					fmt.Fprintf(os.Stderr, "ERR: %s\n", err)
+					os.Exit(1)
+				}
+			}
+		*/
 		err = serveSite(getStr(site, "_outdir"))
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "ERR: %s\n", err)
@@ -370,6 +379,7 @@ func loadSiteConfig(siteDir string) (Site, error) {
 		return nil, fmt.Errorf("%s: %s", fileName, err)
 	}
 
+	site["_configfile"] = fileName
 	site["_outdir"] = filepath.Join(siteDir, "www")
 	site["_contentdir"] = filepath.Join(siteDir, "content")
 	site["_skeldir"] = filepath.Join(siteDir, "skel")
