@@ -72,18 +72,24 @@ func main() {
 		fmt.Fprintf(os.Stderr, "ERR: %s\n", err)
 		os.Exit(1)
 	}
-
 	if serverFlag {
-		/*	for {
-				site, err := gen(siteDir)
+		outDir := getStr(site, "_outdir")
+		go func() {
+			for {
+				var err error
 				err = waitForChanges(site)
 				if err != nil {
 					fmt.Fprintf(os.Stderr, "ERR: %s\n", err)
 					os.Exit(1)
 				}
+				site, err = gen(siteDir)
+				if err != nil {
+					fmt.Fprintf(os.Stderr, "ERR: %s\n", err)
+				}
 			}
-		*/
-		err = serveSite(getStr(site, "_outdir"))
+		}()
+
+		err = serveSite(outDir)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "ERR: %s\n", err)
 			os.Exit(1)
@@ -148,6 +154,8 @@ func gen(siteDir string) (Site, error) {
 			return nil, err
 		}
 	}
+
+	fmt.Fprintf(os.Stdout, "generated site\n")
 	return site, err
 }
 

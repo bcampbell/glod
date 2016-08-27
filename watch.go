@@ -32,8 +32,15 @@ func waitForChanges(site Site) error {
 	for {
 		select {
 		case event := <-watcher.Events:
+
+			// TODO: use .gitignore files for this...
+
+			ext := filepath.Ext(event.Name)
+			if ext == ".swp" || ext == ".swx" {
+				continue
+			}
+
 			// TODO:
-			// - ignore swapfiles,
 			// - ignore new dir creation
 			fmt.Println("event:", event)
 			return nil
