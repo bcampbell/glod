@@ -4,3 +4,5 @@ sort content (by date at least)
 allow .markdown as well as .md
 report multiple errors before bailing out
 add date formatting func for use in templates
+provide default template (for use with no templates dir)
+support generation of .html urls (and directory/index.html too?)
