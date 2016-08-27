@@ -46,7 +46,11 @@ type Page map[string]interface{}
 //   baseurl  (eg "http://fancysite.example.com/") TODO
 //   publishdir  (default: "www") TODO
 //   uglyurls  (default: false) TODO
-
+//   pages    A list of all the pages in the site, indexed by "path/slug"
+//            Need to use the index fn to get around non alpha-numeric names
+//            eg, in a template:
+//                <a href="{{(index .Site.pages "docs/getting-started").url}}>Getting Started</a>
+//
 type Site map[string]interface{}
 
 func main() {
@@ -122,11 +126,6 @@ func gen(siteDir string) (Site, error) {
 	if err != nil {
 		return nil, err
 	}
-	/*
-		for _, tmpl := range t.Templates() {
-			fmt.Println(tmpl.Tree.Name)
-		}
-	*/
 
 	site["pages"] = pages
 
@@ -193,10 +192,10 @@ func loadTemplates(srcDir string) (*template.Template, error) {
 
 // load in all the pages
 // TODO: support having static files in here too
-func readContent(site Site) ([]Page, error) {
-	pages := []Page{}
+func readContent(site Site) (map[string]Page, error) {
+	pages := map[string]Page{}
 
-	err := filepath.Walk(getStr(site, "_contentdir"), func(path string, info os.FileInfo, err error) error {
+	err := filepath.Walk(getStr(site, "_contentdir"), func(fullpath string, info os.FileInfo, err error) error {
 		if err != nil {
 			return err
 		}
@@ -204,14 +203,16 @@ func readContent(site Site) ([]Page, error) {
 			return nil
 		}
 
-		ext := filepath.Ext(path)
+		ext := filepath.Ext(fullpath)
 		switch ext {
 		case ".md", ".html":
-			page, err := readPage(site, path)
+			page, err := readPage(site, fullpath)
 			if err != nil {
-				return fmt.Errorf("%s: %s", path, err)
+				return fmt.Errorf("%s: %s", fullpath, err)
 			}
-			pages = append(pages, page)
+			slug := getStr(page, "slug")
+			relPath := getStr(page, "path")
+			pages[path.Join(relPath, slug)] = page
 		default:
 		}
 		return nil

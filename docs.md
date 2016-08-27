@@ -16,6 +16,10 @@ You arrange the directory structure how you like. Glod will preserve the stuctur
 
 ### `config.toml`
 
+This holds the overall site configuration, plus any extra values you decide to set.
+
+These are all available in templates under the `.Site` value.
+
 
 eg:
 
@@ -27,6 +31,14 @@ title
 
 baseurl
 : the full url for the root of the site
+
+
+generated vars - these are available in `.Site`, but shouldn't be set in `config.toml`:
+
+pages
+: all the pages in the site, indexed by "path/slug".
+Because of non-alphanumeric characters in keys, you'll probably need to use the `index` function in templates. eg:
+    <a href="{{(index .Site.pages "docs/getting-started").url}}>Getting Started</a>
 
 
 
