@@ -273,6 +273,11 @@ func readPage(site Site, filename string) (Page, error) {
 	}
 	page["url"] = u
 
+	// ensure date set (even if empty string!)
+	if _, ok := page["date"]; !ok {
+		page["date"] = ""
+	}
+
 	title := getStr(page, "title")
 	if title == "" {
 		// derive title from slug
@@ -356,11 +361,11 @@ func renderPage(page Page, site Site, tmpls *template.Template) error {
 
 	err := os.MkdirAll(filepath.Join(outDir, relPath), 0777)
 	if err != nil {
-		return fmt.Errorf("%s: err", getStr(page, "_srcfile"))
+		return fmt.Errorf("%s: Mkdir failed: %s", getStr(page, "_srcfile"), err)
 	}
 	outFile, err := os.Create(outFilename)
 	if err != nil {
-		return fmt.Errorf("%s: err", getStr(page, "_srcfile"))
+		return fmt.Errorf("%s: Create failed: %s", getStr(page, "_srcfile"), err)
 	}
 	defer outFile.Close()
 
@@ -373,7 +378,7 @@ func renderPage(page Page, site Site, tmpls *template.Template) error {
 	}
 	err = def.Execute(outFile, data)
 	if err != nil {
-		return fmt.Errorf("%s: err", getStr(page, "_srcfile"))
+		return fmt.Errorf("%s: render failed: %s", getStr(page, "_srcfile"), err)
 	}
 	//fmt.Fprintf(os.Stderr, "generated %s\n", outFilename)
 	return nil
