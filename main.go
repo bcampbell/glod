@@ -204,8 +204,8 @@ func readContent(site Site) (map[string]Page, error) {
 		}
 
 		ext := filepath.Ext(fullpath)
-		switch ext {
-		case ".md", ".html":
+		switch strings.ToLower(ext) {
+		case ".md", ".markdown", ".html", ".htm":
 			page, err := readPage(site, fullpath)
 			if err != nil {
 				return fmt.Errorf("%s: %s", fullpath, err)
@@ -308,12 +308,13 @@ func renderPageContent(page Page, site Site) error {
 
 	rawContent := page["_rawcontent"].([]byte)
 	ext := filepath.Ext(page["_srcfile"].(string))
-	if ext == ".md" {
+	switch strings.ToLower(ext) {
+	case ".md", ".markdown", ".mdown":
 		// TODO: would be nice to pass markdown through a template here... text/template maybe?
 		// or maybe pass it through, then use html/template on the result?
 		rendered := blackfriday.MarkdownCommon(rawContent)
 		page["content"] = template.HTML(rendered)
-	} else if ext == ".html" {
+	case ".html", ".htm":
 		tmpl := template.New("").Funcs(helperFuncs)
 		_, err := tmpl.Parse(string(rawContent))
 		if err != nil {
@@ -334,7 +335,7 @@ func renderPageContent(page Page, site Site) error {
 		}
 
 		page["content"] = template.HTML(buf.String())
-	} else {
+	default:
 		page["content"] = string(rawContent)
 	}
 	return nil

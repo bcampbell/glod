@@ -1,7 +1,6 @@
 skel dir should be optional
 allow static files in content dir (eg images)
 sort content (by date at least)
-allow .markdown as well as .md
 report multiple errors before bailing out
 provide default template (for use with no templates dir)
 support generation of .html urls (and directory/index.html too?)
