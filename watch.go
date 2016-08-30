@@ -1,7 +1,7 @@
 package main
 
 import (
-	"fmt"
+	//	"fmt"
 	"github.com/fsnotify/fsnotify"
 	"os"
 	"path/filepath"
@@ -42,7 +42,7 @@ func waitForChanges(site Site) error {
 
 			// TODO:
 			// - ignore new dir creation
-			fmt.Println("event:", event)
+			//fmt.Println("event:", event)
 			return nil
 		case err := <-watcher.Errors:
 			return err
@@ -57,7 +57,7 @@ func addRecursive(watcher *fsnotify.Watcher, targ string) error {
 		return err
 	}
 	if !fi.IsDir() {
-		fmt.Println("add file ", targ)
+		//		fmt.Println("add file ", targ)
 		return watcher.Add(targ)
 	}
 
@@ -66,7 +66,7 @@ func addRecursive(watcher *fsnotify.Watcher, targ string) error {
 			return err
 		}
 		if fi.IsDir() {
-			fmt.Println("add dir ", path)
+			//			fmt.Println("add dir ", path)
 			err = watcher.Add(path)
 			if err != nil {
 				return err

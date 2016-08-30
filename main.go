@@ -54,15 +54,6 @@ type Page map[string]interface{}
 type Site map[string]interface{}
 
 func main() {
-	fmt.Println(sortStuff(map[string]string{
-		"foo": "bzzzzzz",
-		"a":   "sea?",
-		"A":   "one",
-		"eh?": "bzzzzzz?",
-	}))
-
-	fmt.Println(sortStuff([]string{"a", "b", "fook", "shit", "fish", "aardvark", "42"}))
-	return
 
 	flag.Usage = func() {
 
