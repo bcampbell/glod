@@ -59,5 +59,6 @@ func dateFormat(fmt string, dt string) (string, error) {
 var helperFuncs = template.FuncMap{
 	"split":      split,
 	"in":         in,
+	"sort":       sortStuff,
 	"dateFormat": dateFormat,
 }
