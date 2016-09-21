@@ -5,3 +5,4 @@ provide default template (for use with no templates dir)
 support generation of .html urls (uglyURLs setting)
 add 'where' fn to templates (based on hugo one)
 send patch to hugo to remove unused key in sorting
+emit a warning if site has no root index page

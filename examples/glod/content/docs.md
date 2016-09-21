@@ -38,8 +38,10 @@ generated vars - these are available in `.Site`, but shouldn't be set in `config
 pages
 : all the pages in the site, indexed by "path/slug".
 Because of non-alphanumeric characters in keys, you'll probably need to use the `index` function in templates. eg:
-    <a href="{{(index .Site.pages "docs/getting-started").url}}>Getting Started</a>
 
+```
+<a href="{{(index .Site.pages "docs/getting-started").url}}>Getting Started</a>
+```
 
 
 ### `skel` dir
@@ -129,6 +131,46 @@ url
 
 content
 : holds the rendered (html) content for page
+
+
+## Functions
+
+### `split [string] [sep]`
+
+Splits `string` wherever `sep` occurs, returning a slice containing the multiple pieces.
+
+### `in [haystack] [needle]`
+
+Returns true if `needle` is found in `haystack`
+
+eg, generate a list of all pages under `posts/`:
+```
+  <ul>
+  {{ range .Site.pages }}{{ if in .path "posts/" }}
+    <li>{{ .date }} <a href="{{.url}}">{{.title }}</a></li>
+  {{ end }}{{ end }}
+  </ul>
+```
+
+
+### `sort [collection] <sortField> <sortOrder>`
+
+sorts collections (maps, arrays or slices) of elements
+
+optional args:
+
+`sortField`
+: If the elements contain sub elements, `sortField` lets you pick the one use as a sort key. (eg, you might sorts posts using `"date"`). By default, maps are sorted by key and slices/arrays are sorted by value.
+
+`sortOrder`
+: must be "asc" (default) or "desc"
+
+TODO: examples
+
+
+### `dateFormat [fmt] [date]`
+
+Formats the `date` according to the `fmt` string.
 
 
 
