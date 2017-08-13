@@ -52,6 +52,8 @@ Usually you'd use this to hold any static css, js or image files.
 This holds any templates used to compose content into HTML pages.
 `default.html` is the default page template but this can be overriden per-page in the front matter.
 
+Templates are written in the [golang template format](https://golang.org/pkg/text/template/).
+
 Templates can be for full HTML pages, or individual page components intended to be included from other templates (eg page headers and footers).
 
 It's up to you to decide how you want to organise them.
@@ -126,16 +128,6 @@ Each content file can have a front matter section which defines various values.
 
 
 
-url
-: eg "/posts/april/everything-is-a-bit-shit"
-  as a special case, if the slug is `index`, then the url is truncated.
-  eg "index.html" -> "/"
-     "posts/index.html" -> "/posts/"
-
-content
-: holds the rendered (html) content for page
-
-
 ## Variables
 
 
@@ -189,11 +181,12 @@ unlikely you'd refernce this from a template, but it's noted here for
 completeness.
 
 `url`
-: The full URL of the page, relative to the site root.
-  eg "/posts/april/everything-is-a-bit-shit"
-  as a special case, if the slug is `index`, then the url is truncated.
-  eg "index.html" -> "/"
-     "posts/index.html" -> "/posts/"
+: The full URL of the page, relative to the site root
+  (eg "`/posts/april/everything-is-a-bit-shit`").
+  There is a special case: if the slug is `index`, then the url is truncated.
+  eg
+    * "`index.html`" -> "`/`", 
+    * "`posts/index.html`" -> "`/posts/`"
 
 
 `path`
