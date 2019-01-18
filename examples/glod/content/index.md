@@ -16,41 +16,62 @@ A Glod site has a directory structure something like this:
 
 When glod is run, it performs these steps:
 
-1. create a new output directory, `www`.
-2. copy everything in `skel` to `www`.
-3. each file in the `content` dir is processed through a template, and the resulting output is added to the site. Glod will preserve the stucture you have in `content`.
+1. load `config.toml` into the `.Site` variable.
+2. create a new output directory, `www`.
+3. copy everything in `skel` to `www`.
+4. for each file in `content`:
+    1. read the front matter values into the `.Page` variable.
+    2. process the file through a template (`default.html` by default, but can be specified in front matter). The template can use values in `.Page` and `.Site`.
+    3. write the resultant HTML output to `www`, preserving the same directory structure as in `content`.
+
+## Invoking
 
 
+    $ glod [-server] [SITEDIR]
 
-### `config.toml`
+`SITEDIR` is the top-level directory containing `config.toml`. It may be omitted to operate upon the current directory.
 
-This holds the overall site configuration, plus any extra values you decide to set.
+`-server` will cause glod to run a local web server to serve the site on. It will appear at `http://localhost:8080`.
+In `-server` mode, altering any of the files will cause an automatic rebuild of the site.
 
-These are all available in templates under the `.Site` value.
 
+## `config.toml`
 
-eg:
+This holds the overall site configuration.
+
+The values in `config.toml` are available for use in templates through the `.Site` variable.
+
+You can place any site-wide data you like in here, but there are a few names which
+have special meanings:
+
+`title`
+: The *pretty* name for the site, eg "`Fancy Site`"
+
+`baseurl`
+: the full url for the root of the site, eg "`http://glod.scumways.com`"
+
+`pages`
+: a list of all the pages in the site, indexed by "path/slug".
+This is built when glod is run - you should not set `pages`
+in `config.toml`, but it will be available for use in templates
+via `.Site`.
+
+an example `config.toml`:
 
     title = "Glod"
     baseurl = "http://glod.scumways.com/"
 
 
-See the `.Site` variable for details.
-
-
-
-
-
-### `skel` dir
+## `skel` dir
 
 This holds the base files for the site. It is copied verbatim as the first step in building the site.
 
 Usually you'd use this to hold any static css, js or image files.
 
-### `templates` dir
+## `templates` dir
 
 This holds any templates used to compose content into HTML pages.
-`default.html` is the default page template but this can be overriden per-page in the front matter.
+`default.html` is the default page template but this can be overriden per-page in the front matter, using the `template` variable.
 
 Templates are written in the [golang template format](https://golang.org/pkg/text/template/).
 
@@ -90,13 +111,30 @@ For example:
 
 
 
-### `content` dir
+## `content` dir
 
-Each file in the content dir is processed and rendered out to an .html file.
-
-The directory structure is preserved, and will be reflected in the rendered website.
+Each file `content` represents a single page.
 
 Page content files can be markdown (`.md`) or HTML (`.html`) files.
+
+They are processed through a template and rendered out to an `.html` file.
+
+Page-specific values can be defined in a front matter section.
+The front matter is denoted by `+++`. For example:
+
+    +++
+    title="Fancy blog post"
+    date="2011-02-05"
+    +++
+
+    Here is content for our fancy blog posting, in markdown.
+
+    ... blah blah ...
+
+
+The directory structure in `content` is preserved and will be reflected in the rendered website.
+
+
 HTML files are passed through the template engine, and can access variables.
 However the templates from the `templates` directory are /not/ available here.
 For example, you could generate an index page like this:
@@ -113,72 +151,36 @@ For example, you could generate an index page like this:
     {{end}}
     </ul>
 
+### `.Site` var
 
-Each content file can have a front matter section which defines various values.
+Everything in `config.toml` is made available to the template through `.Site`.
 
-    +++
-    title="Fancy blog post"
-    date="2011-02-05"
-    +++
-
-    Here is a fancy blog posting.
-
-    It has content and stuff.
-
-
-
-
-## Variables
-
-
-### `.Site` vars
-
-`.Site` holds values which are relevant to the site as a whole.
-It is initialised via `config.toml`, so you can add any
-site-global values you'd like.
-
-Keys with special meaning are:
-
-
-`title`
-: The /pretty/ name for the site, eg "`Fancy Site`"
-
-`baseurl`
-: the full url for the root of the site, eg "`http://glod.scumways.com`"
-
-`pages`
-: a list of all the pages in the site, indexed by "path/slug".
-This is calculated when glod is run - you should not set `pages`
-in `config.toml`.
-Because of non-alphanumeric characters in keys, you'll probably need to use the `index` function in templates. eg:
-
-```
-<a href="{{(index .Site.pages "docs/getting-started").url}}>Getting Started</a>
-```
-
-
-
-### `.Page` vars
+### `.Page` var
 
 This holds values specific to the current page being processed.
-Any values set in the front matter of content files shows up here.
+It is initialised from the front matter section of the content file.
+
 `.Page` is really a shortcut to the entry in `.Site.pages` for
 the current page.
 
-Values with special meanings:
+You can put any values you like in the front matter.
+
+The names with special meanings:
 
 `title`
 : The page title. If not set in the front matter, it is derived from the
-slug, by replacing hyphens with spaces and title-casing the text, eg "`hello-there`"
+slug by replacing hyphens with spaces and title-casing the text, eg "`hello-there`"
 becomes "`Hello There`".
 
 `date`
 : The timestamp of the page, eg "2016-08-20"
+(TODO: what other date/time formats are supported?)
 
 `template`
-: name of template to use to render this page (default: `default.html`). It's
-unlikely you'd refernce this from a template, but it's noted here for
-completeness.
+: name of template to use to render this page (default: `default.html`).
+
+There are a few names which are not to be set in the front matter.
+They are derived values, calculated at runtime:
 
 `url`
 : The full URL of the page, relative to the site root
@@ -188,7 +190,6 @@ completeness.
     * "`index.html`" -> "`/`", 
     * "`posts/index.html`" -> "`/posts/`"
 
-
 `path`
 : The path part of the URL, eg `posts/april`
 
@@ -196,15 +197,10 @@ completeness.
 : The slug part of the URL, eg `everything-is-a-bit-shit`
 
 `content`
-: holds the rendered (html) content for page
+: holds the rendered (html) content for the page
 
 
-
-Note: `url`, `path`, `slug` and `content` are not to be set in the front matter.
-They are derived values, and should be considered read-only.
-
-
-## Functions
+## Template Helper Functions
 
 Various helper functions available within templates:
 
@@ -246,13 +242,37 @@ TODO: examples
 
 Formats the `date` according to the `fmt` string.
 
+TODO: examples. Document `fmt`.
 
+## URL policy
 
-TODO document:
+It's assumed that you have fully control over how your web server maps URLs to pages.
 
-* commandline syntax and -server mode
-* URL policy (ie server support required)
-* examples (index page)
+Glod aims to produce nice clean urls like:
 
+    https://example.com/blog/example-post
 
+...without the `.html` suffix or any silly trickery like giving every page it's own directory containing a single `index.html` file.
+
+The assumption is that you set up your web server to handle the pages correctly as html.
+
+TODO: example configs for nginx and apache.
+
+TODO: Should probably support an option for .html extensions or separate directories
+
+## NOTES
+
+### Getting specific pages from `.Site.pages`
+
+Because of non-alphanumeric characters in keys, you'll probably need to use the `index` function in templates. eg:
+
+This won't work because of the '/' and '-':
+```
+<a href="{{index .Site.pages.docs/getting-started.url}}>Getting Started</a>
+```
+
+But this will:
+```
+<a href="{{(index .Site.pages "docs/getting-started").url}}>Getting Started</a>
+```
 
