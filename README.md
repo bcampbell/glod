@@ -1,5 +1,9 @@
 # GLOD - the new glod standard for static site generation
 
+## docs
+
+http://glod.scumways.com
+
 ## goals
 
 - keep it simple
