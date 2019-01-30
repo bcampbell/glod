@@ -85,7 +85,7 @@ input[type="checkbox"] {
 
 
 input,textarea {
-    padding: 0.4em;
+    padding: 0.4rem;
 }
 
 input,select { }
@@ -107,7 +107,7 @@ input,select { }
 
 .form-group {
     display: block;
-    margin-bottom: 0.5em;
+    margin-bottom: 0.5rem;
 }
 
 .form-control {
@@ -117,8 +117,8 @@ input,select { }
 .help-block {
     display: block;
     color: #888;
-    margin-top: 0.2em;
-    margin-bottom: 0.4em;
+    margin-top: 0.2rem;
+    margin-bottom: 0.4rem;
 }
 
 
@@ -163,7 +163,7 @@ input,select { }
 
 .btn {
   display: inline-block;
-  padding: 0.2em 0.5em;
+  padding: 0.2rem 0.5rem;
   text-align: center;
   white-space: nowrap;
   vertical-align: middle;
