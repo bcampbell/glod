@@ -3,36 +3,47 @@
 Glod is a static site generator, along the lines of [Jekyll](http://jekyllrb.com/)
 or [Hugo](https://gohugo.io). But way more spartan than either of those.
 
+Project page: https://github.com/bcampbell/glod
+
 
 ## Overview
 
-A Glod site has a directory structure something like this:
+A Glod site has a source directory structure something like this:
 
     .
     +-- site.toml       overall site config
-    +-- skel/           css, js, images and other static files
+    +-- skel/           css, js, images and other static files.
     +-- templates/      default.html etc...
-    +-- content/        .md files passed through templates to produce pages
+    +-- content/        one file per page (markdown or html, with front
+                        matter section for page-specific values)
 
-When glod is run, it performs these steps:
+Glod will copy `skel` to `www`, then add all the pages by processing the
+`content` files through templates.
 
-1. load `site.toml` into the `.Site` variable.
-2. create a new output directory, `www`.
-3. copy everything in `skel` to `www`.
-4. for each file in `content`:
-    1. read the front matter values into the `.Page` variable.
-    2. process the file through a template (`default.html` by default, but can be specified in front matter). The template can use values in `.Page` and `.Site`.
-    3. write the resultant HTML output to `www`, preserving the same directory structure as in `content`.
+
+## Installing
+
+Build from source:
+
+    $ git clone https://github.com/bcampbell/glod.git
+    $ cd glod
+    $ go install
+
 
 ## Invoking
-
 
     $ glod [-server] [SITEDIR]
 
 `SITEDIR` is the top-level directory containing `site.toml`. It may be omitted to operate upon the current directory.
 
+The final website will be output to `SITEDIR/www`.
+
 `-server` will cause glod to run a local web server to serve the site on. It will appear at `http://localhost:8080`.
 In `-server` mode, altering any of the files will cause an automatic rebuild of the site.
+
+eg - to build and run a local version of the glod website:
+
+    $ glod -server examples/glod
 
 
 ## `site.toml`
@@ -62,16 +73,64 @@ an example `site.toml`:
     baseurl = "http://glod.scumways.com/"
 
 
-## `skel` dir
+## In Detail
 
-This holds the base files for the site. It is copied verbatim as the first step in building the site.
+When glod is run, it performs these steps:
 
-Usually you'd use this to hold any static css, js or image files.
+1. Load `site.toml` values into the `.Site` collection.
+2. Copy everything in `skel` to the output directory, `www`
+3. For each file in `content`:
+    1. Read the front matter values into the `.Page` collection.
+    2. Process the file through a template. The template can use values in `.Page` and `.Site`.
+    3. Write the resultant HTML output to `www`, preserving the same directory structure as in `content`.
 
-## `templates` dir
 
-This holds any templates used to compose content into HTML pages.
-`default.html` is the default page template but this can be overriden per-page in the front matter, using the `template` variable.
+## Content
+
+Each file in `content` represents a single page.
+
+Page content files can be markdown (`.md`) or HTML (`.html`) files.
+
+They are processed through a template and rendered out to an `.html` file.
+
+Page-specific values can be defined in a front matter section.
+The front matter is denoted by `+++`. For example:
+
+    +++
+    title="Fancy blog post"
+    date="2011-02-05"
+    template="blogpost.html"
+    +++
+
+    Here is content for our fancy blog posting, in markdown.
+
+    ... blah blah ...
+
+
+The front-matter value `template` specifies which template to use for the page.
+If unset `default.html` is assumed.
+
+The directory structure in `content` is preserved and will be reflected in the rendered website.
+
+HTML files are passed through the template engine, and can access variables.
+However the templates from the `templates` directory are /not/ available here.
+For example, you could generate an index page from an HTML content file like this:
+
+    +++
+    title="Index"
+    +++
+    <h2>Blog posts</h2>
+    <ul>
+    {{ range .Site.pages }}
+    {{ if in .path "blog" }}
+    <li><a href="{{.url}}">{{.title}}</a></li>
+    {{end}}
+    {{end}}
+    </ul>
+
+## Templates
+
+Templates transform content into full pages.
 
 Templates are written in the [golang template format](https://golang.org/pkg/text/template/).
 
@@ -110,52 +169,11 @@ For example:
     {{template "footer.html" .}}
 
 
-
-## `content` dir
-
-Each file `content` represents a single page.
-
-Page content files can be markdown (`.md`) or HTML (`.html`) files.
-
-They are processed through a template and rendered out to an `.html` file.
-
-Page-specific values can be defined in a front matter section.
-The front matter is denoted by `+++`. For example:
-
-    +++
-    title="Fancy blog post"
-    date="2011-02-05"
-    +++
-
-    Here is content for our fancy blog posting, in markdown.
-
-    ... blah blah ...
-
-
-The directory structure in `content` is preserved and will be reflected in the rendered website.
-
-
-HTML files are passed through the template engine, and can access variables.
-However the templates from the `templates` directory are /not/ available here.
-For example, you could generate an index page like this:
-
-    +++
-    title="Index"
-    +++
-    <h2>Blog posts</h2>
-    <ul>
-    {{ range .Site.pages }}
-    {{ if in .path "blog" }}
-    <li><a href="{{.url}}">{{.title}}</a></li>
-    {{end}}
-    {{end}}
-    </ul>
-
-### `.Site` var
+### `.Site` variable
 
 Everything in `site.toml` is made available to the template through `.Site`.
 
-### `.Page` var
+### `.Page` variable
 
 This holds values specific to the current page being processed.
 It is initialised from the front matter section of the content file.
@@ -182,6 +200,14 @@ becomes "`Hello There`".
 There are a few names which are not to be set in the front matter.
 They are derived values, calculated at runtime:
 
+`path`
+: The path part of the URL, eg `posts/april`
+  The is taken directly from the path of the file within `content/`.
+
+`slug`
+: The slug part of the URL, eg `everything-is-a-bit-shit`
+  This is taken from the filename of the content file.
+
 `url`
 : The full URL of the page, relative to the site root
   (eg "`/posts/april/everything-is-a-bit-shit`").
@@ -190,14 +216,9 @@ They are derived values, calculated at runtime:
     * "`index.html`" -> "`/`", 
     * "`posts/index.html`" -> "`/posts/`"
 
-`path`
-: The path part of the URL, eg `posts/april`
-
-`slug`
-: The slug part of the URL, eg `everything-is-a-bit-shit`
-
 `content`
 : holds the rendered (html) content for the page
+  The template is responsible for inserting this in the correct place in the output page.
 
 
 ## Template Helper Functions
@@ -246,7 +267,7 @@ TODO: examples. Document `fmt`.
 
 ## URL policy
 
-It's assumed that you have fully control over how your web server maps URLs to pages.
+It's assumed that you have full control over how your web server maps URLs to pages.
 
 Glod aims to produce nice clean urls like:
 
@@ -259,6 +280,23 @@ The assumption is that you set up your web server to handle the pages correctly 
 TODO: example configs for nginx and apache.
 
 TODO: Should probably support an option for .html extensions or separate directories
+
+### Example nginx config
+
+```
+server {
+    listen   80;
+    server_name  example.com;
+    root /srv/example.com/www;
+
+    index index.html;
+
+    location / {
+        try_files $uri $uri.html $uri/ =404;
+    }
+}
+```
+
 
 ## NOTES
 
