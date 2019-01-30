@@ -4,5 +4,12 @@ report multiple errors before bailing out
 provide default template (for use with no templates dir)
 support generation of .html urls (uglyURLs setting)
 add 'where' fn to templates (based on hugo one)
-send patch to hugo to remove unused key in sorting
 emit a warning if site has no root index page
+make it installable via go-get
+"generated site" message is rubbish
+add license
+add authors
+installation instructions
+glod website - add minimum margins for small viewport.
+x rename config.toml to site.toml
+

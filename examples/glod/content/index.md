@@ -9,14 +9,14 @@ or [Hugo](https://gohugo.io). But way more spartan than either of those.
 A Glod site has a directory structure something like this:
 
     .
-    +-- config.toml     overall site config
+    +-- site.toml       overall site config
     +-- skel/           css, js, images and other static files
     +-- templates/      default.html etc...
     +-- content/        .md files passed through templates to produce pages
 
 When glod is run, it performs these steps:
 
-1. load `config.toml` into the `.Site` variable.
+1. load `site.toml` into the `.Site` variable.
 2. create a new output directory, `www`.
 3. copy everything in `skel` to `www`.
 4. for each file in `content`:
@@ -29,17 +29,17 @@ When glod is run, it performs these steps:
 
     $ glod [-server] [SITEDIR]
 
-`SITEDIR` is the top-level directory containing `config.toml`. It may be omitted to operate upon the current directory.
+`SITEDIR` is the top-level directory containing `site.toml`. It may be omitted to operate upon the current directory.
 
 `-server` will cause glod to run a local web server to serve the site on. It will appear at `http://localhost:8080`.
 In `-server` mode, altering any of the files will cause an automatic rebuild of the site.
 
 
-## `config.toml`
+## `site.toml`
 
 This holds the overall site configuration.
 
-The values in `config.toml` are available for use in templates through the `.Site` variable.
+The values in `site.toml` are available for use in templates through the `.Site` variable.
 
 You can place any site-wide data you like in here, but there are a few names which
 have special meanings:
@@ -53,10 +53,10 @@ have special meanings:
 `pages`
 : a list of all the pages in the site, indexed by "path/slug".
 This is built when glod is run - you should not set `pages`
-in `config.toml`, but it will be available for use in templates
+in `site.toml`, but it will be available for use in templates
 via `.Site`.
 
-an example `config.toml`:
+an example `site.toml`:
 
     title = "Glod"
     baseurl = "http://glod.scumways.com/"
@@ -153,7 +153,7 @@ For example, you could generate an index page like this:
 
 ### `.Site` var
 
-Everything in `config.toml` is made available to the template through `.Site`.
+Everything in `site.toml` is made available to the template through `.Site`.
 
 ### `.Page` var
 

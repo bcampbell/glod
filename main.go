@@ -388,7 +388,7 @@ func renderPage(page Page, site Site, tmpls *template.Template) error {
 
 func loadSiteConfig(siteDir string) (Site, error) {
 
-	fileName := filepath.Join(siteDir, "config.toml")
+	fileName := filepath.Join(siteDir, "site.toml")
 	site := Site{}
 	_, err := toml.DecodeFile(fileName, &site)
 	if err != nil {
