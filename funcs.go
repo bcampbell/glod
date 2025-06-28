@@ -16,7 +16,17 @@ func split(s string, d string) []string {
 
 func in(haystack interface{}, needle string) bool {
 	if s, ok := haystack.(string); ok {
+		// Check for substring within a string.
 		return strings.Contains(s, needle)
+	}
+
+	if s, ok := haystack.([]interface{}); ok {
+		// Check for string in a slice of things.
+		for _, item := range s {
+			if item == needle {
+				return true
+			}
+		}
 	}
 
 	return false
